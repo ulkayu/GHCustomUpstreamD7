@@ -383,13 +383,43 @@ function yubikey_login_authenticate_validate($form, &$form_state) {
   $yk_authscheme = variable_get('yubikey_authscheme', 'un_pwd');
   if ($yk_authscheme == 'yk_only') {
     global $user;
+    
+    // Do not allow any login from the current user's IP if the limit has been
+    // reached. Default is 50 failed attempts allowed in one hour. This is
+    // independent of the per-user limit to catch attempts from one IP to log
+    // in to many different user accounts.  We have a reasonably high limit
+    // since there may be only one apparent IP for all users at an institution.
+    if (!flood_is_allowed('failed_login_attempt_ip', variable_get('user_failed_login_ip_limit', 50), variable_get('user_failed_login_ip_window', 3600))) {
+      $form_state['flood_control_triggered'] = 'ip';
+      return;
+    }
 
     // Load the account to check if the e-mail is denied by an access rule.
     // Doing this check here saves us a user_load() in user_login_name_validate()
     // and introduces less code change for a security fix.
-    $account = db_query("SELECT * FROM {users} WHERE name = :name AND status = 1", array(':name' => $form_state['values']['name']))->fetchObject();
-    if ($account && drupal_is_denied('mail', $account->mail)) {
-      form_set_error('name', t('The name %name is registered using a reserved e-mail address and therefore could not be logged in.', array('%name' => $account->name)));
+    $otp = $form_state['values']['yubikey_otp'];
+    $identity = yubikey_get_identity($otp);
+    $account = yubikey_user_load_info(array('authname' => $identity));
+    if ($account) {
+      if (variable_get('user_failed_login_identifier_uid_only', FALSE)) {
+        // Register flood events based on the uid only, so they apply for any
+        // IP address. This is the most secure option.
+        $identifier = $account->uid;
+      }
+      else {
+        // The default identifier is a combination of uid and IP address. This
+        // is less secure but more resistant to denial-of-service attacks that
+        // could lock out all users with public user names.
+        $identifier = $account->uid . '-' . ip_address();
+      }
+      $form_state['flood_control_user_identifier'] = $identifier;
+
+      // Don't allow login if the limit for this user has been reached.
+      // Default is to allow 5 failed attempts every 6 hours.
+      if (!flood_is_allowed('failed_login_attempt_user', variable_get('user_failed_login_user_limit', 5), variable_get('user_failed_login_user_window', 21600), $identifier)) {
+        $form_state['flood_control_triggered'] = 'user';
+        return;
+      }
     }
 
     // The user is about to be logged in, so make sure no error was previously

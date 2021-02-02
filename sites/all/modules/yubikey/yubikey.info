@@ -10,8 +10,8 @@ files[] = yubikey.install
 files[] = yubikey.pages.inc
 
 
-; Information added by Drupal.org packaging script on 2019-10-04
-version = "7.x-2.2"
+; Information added by Drupal.org packaging script on 2020-06-09
+version = "7.x-2.3"
 core = "7.x"
 project = "yubikey"
-datestamp = "1570199288"
+datestamp = "1591735163"
