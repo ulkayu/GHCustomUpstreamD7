@@ -1,0 +1,17 @@
+name = YubiKey
+description = "Provides YubiKey based strong two-factor user authentication capabilities to your site."
+package = Authentication
+core = 7.x
+php = 5.2
+
+files[] = yubikey.module
+files[] = yubikey.inc
+files[] = yubikey.install
+files[] = yubikey.pages.inc
+
+
+; Information added by Drupal.org packaging script on 2019-10-04
+version = "7.x-2.2"
+core = "7.x"
+project = "yubikey"
+datestamp = "1570199288"
